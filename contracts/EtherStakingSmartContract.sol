@@ -5,9 +5,9 @@ contract EtherStaking {
 
     // State Variables
     address public owner; // Owner Address
+    uint256 public rewardRate30Days; // Reward Rate for 30 days
     uint256 public rewardRate60Days; // Reward Rate for 60 days
     uint256 public rewardRate90Days; // Reward Rate for 90 days
-    uint256 public rewardRate1Year;  // Reward Rate for 1 year (365 days)
     uint256 public totalStaked; // Total Staked Ether
     uint256 public constant earlyWithdrawalFeePercent = 15; // 15% fee for early withdrawal
 
@@ -15,7 +15,7 @@ contract EtherStaking {
     struct Staker {
         uint256 stakedAmount;       // The amount of Ether staked by the user
         uint256 stakingTimestamp;   // The timestamp when the Ether was staked
-        uint256 stakingDuration;    // The selected staking duration (in days)
+        uint256 stakingDuration;    // The selected staking duration (in seconds)
         uint256 rewards;            // The calculated rewards for the staker
         bool hasStaked;             // Whether the user has an active stake
         bool isRewardWithdrawn;     // Whether the rewards have been withdrawn
@@ -32,9 +32,9 @@ contract EtherStaking {
     // Constructor to initialize contract
     constructor() payable {
         owner = msg.sender; // Set the owner of the contract to the deployer
-        rewardRate60Days = 5; // Initialize reward rate for 60 days (5%)
+        rewardRate30Days = 3;  // Initialize reward rate for 30 days (3%)
+        rewardRate60Days = 5;  // Initialize reward rate for 60 days (5%)
         rewardRate90Days = 15; // Initialize reward rate for 90 days (15%)
-        rewardRate1Year = 35;   // Initialize reward rate for 1 year (365 days) (35%)
 
         // Ensure the contract starts with a non-zero balance
         require(msg.value > 0, "Initial funding must be greater than zero.");
@@ -42,24 +42,27 @@ contract EtherStaking {
 
     // Register Function
     function register(uint256 _preferredDuration) public {
+        // Convert days to seconds
+        uint256 durationInSeconds = _preferredDuration * 1 days;
+
         // Ensure the user is not already registered
         require(!stakers[msg.sender].isRegistered, "Already registered.");
 
         // Ensure a valid duration is selected
         require(
-            _preferredDuration == 60 days || _preferredDuration == 90 days || _preferredDuration == 365 days,
-            "Invalid staking duration. Choose 60 days, 90 days, or 365 days."
+            durationInSeconds == 30 days || durationInSeconds == 60 days || durationInSeconds == 90 days,
+            "Invalid staking duration. Choose 30 days, 60 days, or 90 days."
         );
 
         // Register the user with preferred staking duration
-        stakers[msg.sender].stakingDuration = _preferredDuration;
+        stakers[msg.sender].stakingDuration = durationInSeconds;
         stakers[msg.sender].isRegistered = true;
 
         // Add to the list of stakers
         stakerList.push(msg.sender);
 
         // Emit event for registration
-        emit Registered(msg.sender, _preferredDuration);
+        emit Registered(msg.sender, durationInSeconds);
     }
 
     // Stake Function
@@ -94,12 +97,12 @@ contract EtherStaking {
 
         uint256 rewardRate;
 
-        if (staker.stakingDuration == 60 days) {
+        if (staker.stakingDuration == 30 days) {
+            rewardRate = rewardRate30Days;
+        } else if (staker.stakingDuration == 60 days) {
             rewardRate = rewardRate60Days;
         } else if (staker.stakingDuration == 90 days) {
             rewardRate = rewardRate90Days;
-        } else if (staker.stakingDuration == 365 days) {
-            rewardRate = rewardRate1Year;
         } else {
             return 0; // Invalid duration, return 0 rewards
         }
@@ -108,27 +111,6 @@ contract EtherStaking {
         uint256 rewards = (staker.stakedAmount * rewardRate * staker.stakingDuration) / (100 * 365 days);
 
         return rewards;
-    }
-
-    // Function to view potential rewards before staking
-    function viewPotentialRewards(uint256 _amount, uint256 _duration) public view returns (uint256) {
-        uint256 rewardRate;
-
-        // Determine the reward rate based on the provided staking duration
-        if (_duration == 60 days) {
-            rewardRate = rewardRate60Days;
-        } else if (_duration == 90 days) {
-            rewardRate = rewardRate90Days;
-        } else if (_duration == 365 days) {
-            rewardRate = rewardRate1Year;
-        } else {
-            return 0; // Invalid duration, return 0 rewards
-        }
-
-        // Calculate the potential rewards using the simple interest formula
-        uint256 potentialRewards = (_amount * rewardRate * _duration) / (100 * 365 days);
-
-        return potentialRewards;
     }
 
     // Withdraw Function
@@ -164,6 +146,28 @@ contract EtherStaking {
 
         // Emit Withdraw Event
         emit Withdrawn(msg.sender, stakedAmount, rewards);
+    }
+
+    // Function to view potential rewards before staking
+    function viewPotentialRewards(uint256 _amount, uint256 _duration) public view returns (uint256) {
+        uint256 durationInSeconds = _duration * 1 days;
+        uint256 rewardRate;
+
+        // Determine the reward rate based on the provided staking duration
+        if (durationInSeconds == 30 days) {
+            rewardRate = rewardRate30Days;
+        } else if (durationInSeconds == 60 days) {
+            rewardRate = rewardRate60Days;
+        } else if (durationInSeconds == 90 days) {
+            rewardRate = rewardRate90Days;
+        } else {
+            return 0; // Invalid duration, return 0 rewards
+        }
+
+        // Calculate the potential rewards using the simple interest formula
+        uint256 potentialRewards = (_amount * rewardRate * durationInSeconds) / (100 * 365 days);
+
+        return potentialRewards;
     }
 
     // Function to get the staker's balance (staked amount and calculated rewards)
