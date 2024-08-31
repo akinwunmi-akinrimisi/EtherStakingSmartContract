@@ -110,6 +110,27 @@ contract EtherStaking {
         return rewards;
     }
 
+    // Function to view potential rewards before staking
+    function viewPotentialRewards(uint256 _amount, uint256 _duration) public view returns (uint256) {
+        uint256 rewardRate;
+
+        // Determine the reward rate based on the provided staking duration
+        if (_duration == 60 days) {
+            rewardRate = rewardRate60Days;
+        } else if (_duration == 90 days) {
+            rewardRate = rewardRate90Days;
+        } else if (_duration == 365 days) {
+            rewardRate = rewardRate1Year;
+        } else {
+            return 0; // Invalid duration, return 0 rewards
+        }
+
+        // Calculate the potential rewards using the simple interest formula
+        uint256 potentialRewards = (_amount * rewardRate * _duration) / (100 * 365 days);
+
+        return potentialRewards;
+    }
+
     // Withdraw Function
     function withdraw() public {
         Staker storage staker = stakers[msg.sender];
