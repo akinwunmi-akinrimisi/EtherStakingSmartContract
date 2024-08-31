@@ -19,10 +19,14 @@ contract EtherStaking {
         bool hasStaked;             // Whether the user has an active stake
         bool isRewardWithdrawn;     // Whether the rewards have been withdrawn
         bool isStakeWithdrawn;      // Whether the staked Ether has been withdrawn
+        bool isRegistered;          // Whether the user is registered
     }
 
     // Mapping to store stakers' information
     mapping(address => Staker) public stakers;
+
+    // Array to store the list of stakers
+    address[] public stakerList;
 
     // Constructor to initialize contract
     constructor() payable {
@@ -35,36 +39,52 @@ contract EtherStaking {
         require(msg.value > 0, "Initial funding must be greater than zero.");
     }
 
-    // Stake Function
-    function stake(uint256 _duration) public payable {
-        // 1. Validate Staking Amount
-        require(msg.value > 0, "Staking amount must be greater than zero.");
+    // Register Function
+    function register(uint256 _preferredDuration) public {
+        // Ensure the user is not already registered
+        require(!stakers[msg.sender].isRegistered, "Already registered.");
 
-        // 2. Validate Staking Duration
+        // Ensure a valid duration is selected
         require(
-            _duration == 60 days || _duration == 90 days || _duration == 365 days,
+            _preferredDuration == 60 days || _preferredDuration == 90 days || _preferredDuration == 365 days,
             "Invalid staking duration. Choose 60 days, 90 days, or 365 days."
         );
 
-        // 3. Check for Existing Active Stake
+        // Register the user with preferred staking duration
+        stakers[msg.sender].stakingDuration = _preferredDuration;
+        stakers[msg.sender].isRegistered = true;
+
+        // Add to the list of stakers
+        stakerList.push(msg.sender);
+
+        // Emit event for registration
+        emit Registered(msg.sender, _preferredDuration);
+    }
+
+    // Stake Function
+    function stake() public payable {
+        // Ensure the user is registered
+        require(stakers[msg.sender].isRegistered, "User is not registered.");
+
+        // Validate Staking Amount
+        require(msg.value > 0, "Staking amount must be greater than zero.");
+
+        // Check for Existing Active Stake
         require(!stakers[msg.sender].hasStaked, "Already have an active stake.");
 
-        // 4. Update Staking Information
-        stakers[msg.sender] = Staker({
-            stakedAmount: msg.value,
-            stakingTimestamp: block.timestamp,
-            stakingDuration: _duration,
-            rewards: 0,
-            hasStaked: true,
-            isRewardWithdrawn: false,
-            isStakeWithdrawn: false
-        });
+        // Update Staking Information
+        stakers[msg.sender].stakedAmount = msg.value;
+        stakers[msg.sender].stakingTimestamp = block.timestamp;
+        stakers[msg.sender].rewards = 0;
+        stakers[msg.sender].hasStaked = true;
+        stakers[msg.sender].isStakeWithdrawn = false;
+        stakers[msg.sender].isRewardWithdrawn = false;
 
         // Update total staked Ether
         totalStaked += msg.value;
 
-        // 5. Emit Event
-        emit Staked(msg.sender, msg.value, _duration);
+        // Emit Staked Event
+        emit Staked(msg.sender, msg.value, stakers[msg.sender].stakingDuration);
     }
 
     // Function to calculate rewards (Example calculation based on simple interest)
@@ -89,6 +109,7 @@ contract EtherStaking {
         return rewards;
     }
 
-    // Event declaration
+    // Event declarations
+    event Registered(address indexed user, uint256 preferredDuration);
     event Staked(address indexed user, uint256 amount, uint256 duration);
 }
