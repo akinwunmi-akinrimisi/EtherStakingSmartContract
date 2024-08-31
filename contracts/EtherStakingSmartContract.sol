@@ -5,9 +5,9 @@ contract EtherStaking {
 
     // State Variables
     address public owner; // Owner Address
-    uint256 public rewardRate30Days; // Reward Rate for 30 days
+    uint256 public rewardRate60Days; // Reward Rate for 60 days
     uint256 public rewardRate90Days; // Reward Rate for 90 days
-    uint256 public rewardRate1Year;  // Reward Rate for 1 year
+    uint256 public rewardRate1Year;  // Reward Rate for 1 year (365 days)
     uint256 public totalStaked; // Total Staked Ether
 
     // Struct for Staker Information
@@ -25,37 +25,31 @@ contract EtherStaking {
     mapping(address => Staker) public stakers;
 
     // Constructor to initialize contract
-    constructor(uint256 _rewardRate30Days, uint256 _rewardRate90Days, uint256 _rewardRate1Year) payable {
+    constructor() payable {
         owner = msg.sender; // Set the owner of the contract to the deployer
-        rewardRate30Days = _rewardRate30Days; // Initialize reward rate for 30 days
-        rewardRate90Days = _rewardRate90Days; // Initialize reward rate for 90 days
-        rewardRate1Year = _rewardRate1Year;   // Initialize reward rate for 1 year
+        rewardRate60Days = 5; // Initialize reward rate for 60 days (5%)
+        rewardRate90Days = 15; // Initialize reward rate for 90 days (15%)
+        rewardRate1Year = 35;   // Initialize reward rate for 1 year (365 days) (35%)
 
         // Ensure the contract starts with a non-zero balance
         require(msg.value > 0, "Initial funding must be greater than zero.");
     }
 
-    // Event declaration
-    event Staked(address indexed user, uint256 amount, uint256 duration);
-
-
-
-    
     // Stake Function
     function stake(uint256 _duration) public payable {
-        //Validate Staking Amount
+        // 1. Validate Staking Amount
         require(msg.value > 0, "Staking amount must be greater than zero.");
 
-        //Validate Staking Duration
+        // 2. Validate Staking Duration
         require(
-            _duration == 30 days || _duration == 90 days || _duration == 365 days,
-            "Invalid staking duration. Choose 30 days, 90 days, or 1 year."
+            _duration == 60 days || _duration == 90 days || _duration == 365 days,
+            "Invalid staking duration. Choose 60 days, 90 days, or 365 days."
         );
 
-        //Check for Existing Active Stake
+        // 3. Check for Existing Active Stake
         require(!stakers[msg.sender].hasStaked, "Already have an active stake.");
 
-        //Update Staking Information
+        // 4. Update Staking Information
         stakers[msg.sender] = Staker({
             stakedAmount: msg.value,
             stakingTimestamp: block.timestamp,
@@ -69,8 +63,32 @@ contract EtherStaking {
         // Update total staked Ether
         totalStaked += msg.value;
 
-        // Emit Event
+        // 5. Emit Event
         emit Staked(msg.sender, msg.value, _duration);
     }
 
+    // Function to calculate rewards (Example calculation based on simple interest)
+    function calculateRewards(address _staker) public view returns (uint256) {
+        Staker memory staker = stakers[_staker];
+
+        uint256 rewardRate;
+
+        if (staker.stakingDuration == 60 days) {
+            rewardRate = rewardRate60Days;
+        } else if (staker.stakingDuration == 90 days) {
+            rewardRate = rewardRate90Days;
+        } else if (staker.stakingDuration == 365 days) {
+            rewardRate = rewardRate1Year;
+        } else {
+            return 0; // Invalid duration, return 0 rewards
+        }
+
+        // Calculate the rewards using simple interest formula: (Principal * Rate * Time) / 100
+        uint256 rewards = (staker.stakedAmount * rewardRate * staker.stakingDuration) / (100 * 365 days);
+
+        return rewards;
+    }
+
+    // Event declaration
+    event Staked(address indexed user, uint256 amount, uint256 duration);
 }
