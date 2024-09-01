@@ -42,6 +42,9 @@ contract EtherStaking {
 
     // Register Function
     function register(uint256 _preferredDuration) public {
+       // Zero address check
+        require(msg.sender != address(0), "Address cannot be zero.");
+
         // Convert days to seconds
         uint256 durationInSeconds = _preferredDuration * 1 days;
 
