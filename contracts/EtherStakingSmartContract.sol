@@ -37,7 +37,7 @@ contract EtherStaking {
         rewardRate90Days = 15; // Initialize reward rate for 90 days (15%)
 
         // Ensure the contract starts with a non-zero balance
-        require(msg.value > 0, "Initial funding must be greater than zero.");
+        // require(msg.value > 0, "Initial funding must be greater than zero.");
     }
 
     // Register Function
